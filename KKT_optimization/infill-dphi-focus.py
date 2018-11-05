@@ -346,9 +346,6 @@ sess.run(tf.global_variables_initializer())
 
 LHS = sio.loadmat('{}/LHS_train.mat'.format(directory_data))['LHS_train'] # pre-sampling the loading condition offline
 
-LHS[:,0] = LHS[:,0]
-LHS[:,1] = LHS[:,1]
-
 LHS_x=np.int32(LHS[:,0])
 LHS_y=np.int32(LHS[:,1])
 LHS_z=LHS[:,2]
@@ -364,7 +361,7 @@ for i in range(len(LHS)):
     
 F_load_input = LHS.copy()
 
-
+#---------------------- start training -------------------
 ratio=len(LHS)/batch_size
 for epoch in range(10000):
     final_error=0
