@@ -9,6 +9,8 @@ import os
 from datetime import datetime
 import dateutil.tz
 import time
+import copy
+
 # from utils.utils import *
 
 
@@ -342,3 +344,33 @@ solver = tf.train.AdamOptimizer(learning_rate).minimize(error, global_step=globa
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
+LHS = sio.loadmat('{}/LHS_train.mat'.format(directory_data))['LHS_train'] # pre-sampling the loading condition offline
+
+LHS[:,0] = LHS[:,0]
+LHS[:,1] = LHS[:,1]
+
+LHS_x=np.int32(LHS[:,0])
+LHS_y=np.int32(LHS[:,1])
+LHS_z=LHS[:,2]
+
+force=-1
+F_batch = np.zeros([len(LHS), 2*(nelx+1)*(nely+1)])
+error_store=[]
+for i in range(len(LHS)):
+    Fx = force * np.sin(LHS_z[i])
+    Fy = force * np.cos(LHS_z[i])
+    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-1]=Fy
+    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-2]=Fx
+    
+F_load_input = LHS.copy()
+
+
+ratio=len(LHS)/batch_size
+for epoch in range(10000):
+    final_error=0
+    for it in range(ratio):
+        final_error_temp=sess.run(error,feed_dict={F:      F_load_input[it%ratio*batch_size:it%ratio*batch_size+batch_size],
+                                                   F_input:F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size]})
+        final_error=final_error + final_error_temp
+    final_error=final_error/len(LHS)
+    print('error is: {}'.format(final_error))
