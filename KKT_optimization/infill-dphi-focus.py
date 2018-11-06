@@ -204,7 +204,8 @@ freedofs = np.setdiff1d(alldofs, fixeddofs)
 'prepare some stuff to reduce cost'
 dphi_idphi = (H / sum(H)).T
 
-'Start Iteration'
+##############################################################################
+'Network Structure'
 z_dim, h_dim_1, h_dim_2, h_dim_3, h_dim_4, h_dim_5 = 2, 100, 100, 100, 100, 100
 
 F_input = tf.placeholder(tf.float32, shape=([batch_size, z_dim]))
@@ -233,22 +234,10 @@ h4 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h3, W4) + b4),scale=True)
     
 phi_ = tf.sigmoid(tf.matmul(h4, W5) + b5)
 phi = tf.reshape(phi_, [nn, batch_size])
-
+##################################################################################################
 # phi = (tf.Variable(alpha * np.ones([nn, 1]), dtype='float32'))
 
-loop = 0
-# delta = 1.0
 
-# while beta < 1000:
-loop = loop + 1
-loop2 = 0
-
-eta = 0.1
-eta2 = 0.1
-epsilon = 1
-dphi = 1e6
-
-##################################################################################################
 sep_grad_store,error_store,dphi_store,dobj_store=[],[],[],[]
 c,g,global_density=[],[],[]
 rho=[]
@@ -316,18 +305,12 @@ for i in range(batch_size):
     g.append((tf.reduce_sum(rho_bar ** p) / nely / nelx) ** (1.0 / p) / alpha - 1.0)
     global_density.append(tf.matmul(tf.transpose(rho[i]), tf.ones([nn, 1])) / nn - alpha2)
     ###################################################################
-
-    # if ((max(abs(dphi)))<epsilon_al and g<0.005 and loo2>2) or (loo2>100):
-
-
     dc_drho = -gamma * rho[i] ** (gamma - 1) * (E0 - Emin) * ce
     drho_dphi = beta * (1 - tf.tanh(beta * (phi[:,i:i+1] - 0.5)) ** 2) / 2.0 / tf.tanh(beta / 2.)
     dc_dphi = tf.reduce_sum(bigM * (dphi_idphi * (dc_drho * drho_dphi)), axis=0)
     dg_drhobar = 1.0 / alpha / nn * (1.0 / nn * tf.reduce_sum(rho_bar ** p)) ** (1.0 / p - 1) * rho_bar ** (p - 1)
     dg_dphi = tf.reduce_sum(bigM * (dphi_idphi * (tf.matmul(tf.cast(bigN, tf.float32),
                                                             (dg_drhobar / N_count.reshape(nn, 1))) * drho_dphi)), axis=0)
-
-
     #################################################################
     error_store.append(tf.reduce_sum((1-dg_dphi*(tf.reduce_sum(dc_dphi*dg_dphi)+1e-12)**(-1)*dg_dphi)**2))
     
