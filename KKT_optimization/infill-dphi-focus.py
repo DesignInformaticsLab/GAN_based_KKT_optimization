@@ -206,7 +206,7 @@ dphi_idphi = (H / sum(H)).T
 
 ##############################################################################
 'Network Structure'
-z_dim, h_dim_1, h_dim_2, h_dim_3, h_dim_4, h_dim_5 = 2, 100, 100, 100, 100, 100
+z_dim, h_dim_1, h_dim_2, h_dim_3, h_dim_4, h_dim_5 = 3, 100, 100, 100, 100, 100
 
 F_input = tf.placeholder(tf.float32, shape=([batch_size, z_dim]))
 F = tf.placeholder(tf.float32, shape=([2*(nely+1)*(nelx+1),batch_size]))
@@ -318,7 +318,7 @@ for i in range(batch_size):
 error = tf.reduce_sum(error_store)    
 
 global_step = tf.Variable(0, trainable=False)
-starter_learning_rate = 0.001
+starter_learning_rate = 0.0001
 learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
                                            1000, 1.0, staircase=True)
 
@@ -349,8 +349,8 @@ ratio=len(LHS)/batch_size
 for epoch in range(10000):
     final_error=0
     for it in range(ratio):
-        final_error_temp=sess.run(error,feed_dict={F:      F_load_input[it%ratio*batch_size:it%ratio*batch_size+batch_size],
-                                                   F_input:F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size]})
+        final_error_temp=sess.run(error,feed_dict={F:      F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size],
+                                                   F_input:Fload_input[it%ratio*batch_size:it%ratio*batch_size+batch_size]})
         final_error=final_error + final_error_temp
     final_error=final_error/len(LHS)
     print('error is: {}'.format(final_error))
