@@ -47,7 +47,7 @@ batch_size = 1
 directory_data='experiment_data'
 
 'Input'
-nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*4, 4*4, 0.6, 0.6, 3.0, 3.0, 6.0
+nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*10, 4*10, 0.6, 0.6, 3.0, 3.0, 6.0
 
 'Algorithm parameters'
 p, nn, epsilon_al, epsilon_opt, beta = 16,nely * nelx, 1, 1e-3, 8
@@ -350,8 +350,8 @@ ratio=len(LHS)/batch_size
 for epoch in range(10000):
     final_error=0
     for it in range(ratio):
-        final_error_temp=sess.run(error,feed_dict={F:      F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size],
-                                                   F_input:Fload_input[it%ratio*batch_size:it%ratio*batch_size+batch_size]})
+        final_error_temp=sess.run(error,feed_dict={F:      F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size,:],
+                                                   F_input:Fload_input[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]})
         final_error=final_error + final_error_temp
     final_error=final_error/len(LHS)
     print('error is: {}'.format(final_error))
