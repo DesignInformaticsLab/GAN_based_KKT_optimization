@@ -44,6 +44,7 @@ E0 = 1
 Emin = 1e-9
 nu = 0.3
 batch_size = 1
+directory_data='experiment_data'
 
 'Input'
 nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*4, 4*4, 0.6, 0.6, 3.0, 3.0, 6.0
