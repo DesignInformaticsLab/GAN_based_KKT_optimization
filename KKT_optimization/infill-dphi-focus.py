@@ -47,13 +47,14 @@ batch_size = 1
 directory_data='experiment_data'
 
 'Input'
-nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*10, 4*10, 0.6, 0.6, 3.0, 3.0, 6.0
+ratio = 5
+nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*ratio, 4*ratio, 0.6, 0.6, 3.0, 3.0, 6.0
 
 'Algorithm parameters'
-p, nn, epsilon_al, epsilon_opt, beta = 16,nely * nelx, 1, 1e-3, 8
+p, nn, epsilon_al, epsilon_opt, beta = 16, nely * nelx, 1, 1e-3, 8
 
 'Prepare filter'
-r = rmin
+r = np.ceil(rmin/10*ratio)
 Range = np.arange(-r, r + 1)
 X = np.array([Range] * len(Range))
 Y = np.array([Range] * len(Range)).T
@@ -114,7 +115,7 @@ Hs = np.sum(H, 1)
 bigM = H > 0
 
 'create neighbourhood index for N'
-r = density_r
+r = np.ceil(density_r/10*ratio)
 Range = np.arange(-r, r + 1)
 mesh = Range
 X = np.asarray([Range] * len(Range))
@@ -152,8 +153,8 @@ for i in range(N_t.shape[1]):
             idy.append(N_t[j, i])
             idx.append(idx_temp[k])
         k = k + 1
-idy = np.asarray(idy).reshape(len(idy), 1) - 1
-idx = np.asarray(idx)
+idy = np.asarray(idy,dtype='int').reshape(len(idy), 1) - 1
+idx = np.asarray(idx,dtype='int')
 bigN = sps.coo_matrix((np.ones(len(idx)), (idx.reshape(-1), idy.reshape(-1)))).toarray()
 N_count = np.sum(~np.isnan(N), axis=1)
 
@@ -239,11 +240,11 @@ phi = tf.reshape(phi_, [nn, batch_size])
 # phi = (tf.Variable(alpha * np.ones([nn, 1]), dtype='float32'))
 
 
-sep_grad_store,error_store,dphi_store,dobj_store=[],[],[],[]
-c,g,global_density=[],[],[]
-rho=[]
-dphi_fake=[]
-error_store=[]
+sep_grad_store, error_store, dphi_store, dobj_store = [], [], [], []
+c, g, global_density = [], [], []
+rho = []
+dphi_fake = []
+error_store = []
 
 
 for i in range(batch_size):
@@ -330,8 +331,8 @@ sess.run(tf.global_variables_initializer())
 
 LHS = sio.loadmat('{}/LHS_train.mat'.format(directory_data))['LHS_train'] # pre-sampling the loading condition offline
 
-LHS_x=np.int32(LHS[:,0])
-LHS_y=np.int32(LHS[:,1])
+LHS_x=np.int32(np.floor((LHS[:,0]-1)*(ratio/10.)))
+LHS_y=np.int32(np.floor((LHS[:,1]-1)*(ratio/10.)))
 LHS_z=LHS[:,2]
 
 force=-1
@@ -348,10 +349,11 @@ F_load_input = LHS.copy()
 #---------------------- start training -------------------
 ratio=len(LHS)/batch_size
 for epoch in range(10000):
-    final_error=0
+    final_error = 0
     for it in range(ratio):
-        final_error_temp=sess.run(error,feed_dict={F:      F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size,:],
-                                                   F_input:Fload_input[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]})
-        final_error=final_error + final_error_temp
-    final_error=final_error/len(LHS)
+        _, final_error_temp = sess.run([solver, error],
+                                       feed_dict={F:       np.transpose(F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]),
+                                                  F_input: F_load_input[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]})
+        final_error = final_error + final_error_temp
+    final_error = final_error/len(LHS)
     print('error is: {}'.format(final_error))
