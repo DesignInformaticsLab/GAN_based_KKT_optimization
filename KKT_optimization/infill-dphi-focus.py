@@ -155,7 +155,7 @@ for i in range(N_t.shape[1]):
         k = k + 1
 idy = np.asarray(idy,dtype='int').reshape(len(idy), 1) - 1
 idx = np.asarray(idx,dtype='int')
-bigN = sps.coo_matrix((np.ones(len(idx)), (idx.reshape(-1), idy.reshape(-1)))).toarray()
+bigN = sps.coo_matrix((np.ones(len(idx)), (idx.reshape(-1),np.array(idy.reshape(-1)).astype(int)))).toarray()
 N_count = np.sum(~np.isnan(N), axis=1)
 
 'Material Properties'
@@ -341,13 +341,13 @@ error_store=[]
 for i in range(len(LHS)):
     Fx = force * np.sin(LHS_z[i])
     Fy = force * np.cos(LHS_z[i])
-    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-1]=Fy
-    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-2]=Fx
+    F_batch[i,2*((nely+1)*(LHS_x[i]-1)+LHS_y[i]-1)]=Fy
+    F_batch[i,2*((nely+1)*(LHS_x[i]-1)+LHS_y[i]-1)-1]=Fx
     
 F_load_input = LHS.copy()
 
 #---------------------- start training -------------------
-ratio=len(LHS)/batch_size
+ratio=int(len(LHS)/batch_size)
 for epoch in range(10000):
     final_error = 0
     for it in range(ratio):
