@@ -255,23 +255,22 @@ for i in range(batch_size):
                             tf.reshape(Emin + tf.reshape(rho[i], [-1]) ** (gamma) * (E0 - Emin), [1, nelx * nely])))
     sK = tf.reshape(sK_temp, [8 * 8 * nelx * nely, 1])
 
-    ###################
+    ################### the purpose is to prepare a sparse K_sp ##############
     indices_m = np.stack((iK.reshape(-1), jK.reshape(-1)), axis=1)
     values_m = tf.reshape(sK, [-1])
 
-    linearized_m = tf.matmul(indices_m, [[10000], [1]])
-    y_m, idx_m = tf.unique(tf.squeeze(linearized_m))
+    linearized_m = tf.matmul(indices_m, [[10000], [1]]) # combine the x-coord and y-coord
+    y_m, idx_m = tf.unique(tf.squeeze(linearized_m)) # get the value and index
 
-    idx_m_sort, ind_m_sort = tf.nn.top_k(idx_m, k=nelx * nely * 64)
+    idx_m_sort, ind_m_sort = tf.nn.top_k(idx_m, k=nelx * nely * 64) # sort the index and its corresponding index
     idx_m_sort = tf.reverse(idx_m_sort, [0])
     ind_m_sort = tf.reverse(ind_m_sort, [0])
 
-    # values_m_test = values_m
-    values_m = tf.gather(values_m, ind_m_sort)
-    values_m = tf.segment_sum(values_m, idx_m_sort)
+    values_m = tf.gather(values_m, ind_m_sort) # re-assign the value acoording to the index
+    values_m = tf.segment_sum(values_m, idx_m_sort) # sum the value with the same index
 
     y_m = tf.expand_dims(y_m, 1)
-    indices_m = tf.concat([y_m // 10000, y_m % 10000], axis=1)
+    indices_m = tf.concat([y_m // 10000, y_m % 10000], axis=1) # sperate the x-coord and y-coord
     #####################
 
     #####################
