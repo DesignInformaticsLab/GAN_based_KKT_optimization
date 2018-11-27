@@ -11,6 +11,7 @@ import dateutil.tz
 import time
 import copy
 
+
 # from utils.utils import *
 
 
@@ -18,6 +19,7 @@ def xavier_init(size):
     in_dim = size[0]
     xavier_stddev = 1. / tf.sqrt(in_dim / 2.)
     return tf.random_normal(shape=size, stddev=xavier_stddev)
+
 
 def creat_dir(network_type):
     """code from on InfoGAN"""
@@ -38,23 +40,24 @@ def creat_dir(network_type):
             os.makedirs(path)
     return log_dir, model_dir
 
+
 tic = time.clock()
 
 E0 = 1
 Emin = 1e-9
 nu = 0.3
 batch_size = 1
-directory_data='experiment_data'
+directory_data = 'experiment_data'
 
 'Input'
-ratio = 5
-nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12*ratio, 4*ratio, 0.6, 0.6, 3.0, 3.0, 6.0
+ratio = 1
+nelx, nely, alpha, alpha2, gamma, rmin, density_r = 12 * ratio, 4 * ratio, 0.6, 0.6, 3.0, 3.0, 6.0
 
 'Algorithm parameters'
 p, nn, epsilon_al, epsilon_opt, beta = 16, nely * nelx, 1, 1e-3, 8
 
 'Prepare filter'
-r = np.ceil(rmin/10*ratio)
+r = np.ceil(rmin / 10 * ratio)
 Range = np.arange(-r, r + 1)
 X = np.array([Range] * len(Range))
 Y = np.array([Range] * len(Range)).T
@@ -115,7 +118,7 @@ Hs = np.sum(H, 1)
 bigM = H > 0
 
 'create neighbourhood index for N'
-r = np.ceil(density_r/10*ratio)
+r = np.ceil(density_r / 10 * ratio)
 Range = np.arange(-r, r + 1)
 mesh = Range
 X = np.asarray([Range] * len(Range))
@@ -153,9 +156,9 @@ for i in range(N_t.shape[1]):
             idy.append(N_t[j, i])
             idx.append(idx_temp[k])
         k = k + 1
-idy = np.asarray(idy,dtype='int').reshape(len(idy), 1) - 1
-idx = np.asarray(idx,dtype='int')
-bigN = sps.coo_matrix((np.ones(len(idx)), (idx.reshape(-1), idy.reshape(-1)))).toarray()
+idy = np.asarray(idy, dtype='int').reshape(len(idy), 1) - 1
+idx = np.asarray(idx, dtype='int')
+bigN = sps.coo_matrix((np.ones(len(idx)), (idx.reshape(-1), np.array(idy.reshape(-1)).astype(int)))).toarray()
 N_count = np.sum(~np.isnan(N), axis=1)
 
 'Material Properties'
@@ -211,7 +214,7 @@ dphi_idphi = (H / sum(H)).T
 z_dim, h_dim_1, h_dim_2, h_dim_3, h_dim_4, h_dim_5 = 3, 100, 100, 100, 100, 100
 
 F_input = tf.placeholder(tf.float32, shape=([batch_size, z_dim]))
-F = tf.placeholder(tf.float32, shape=([2*(nely+1)*(nelx+1),batch_size]))
+F = tf.placeholder(tf.float32, shape=([2 * (nely + 1) * (nelx + 1), batch_size]))
 
 W1 = tf.Variable(xavier_init([z_dim, h_dim_1]))
 b1 = tf.Variable(tf.zeros(shape=[h_dim_1]))
@@ -228,14 +231,15 @@ b4 = tf.Variable(tf.zeros(shape=[h_dim_4]))
 W5 = tf.Variable(xavier_init([h_dim_4, nn]))
 b5 = tf.Variable(tf.zeros(shape=[nn]))
 
-h1 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(F_input, W1) + b1),scale=True)
-h2 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h1, W2) + b2),scale=True)
-h3 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h2, W3) + b3),scale=True)
-h4 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h3, W4) + b4),scale=True)
+h1 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(F_input, W1) + b1), scale=True)
+h2 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h1, W2) + b2), scale=True)
+h3 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h2, W3) + b3), scale=True)
+h4 = tf.contrib.layers.batch_norm(tf.nn.relu(tf.matmul(h3, W4) + b4), scale=True)
 # h5 = tf.nn.relu(tf.matmul(h4, W5) + b5)
-    
+
 phi_ = tf.sigmoid(tf.matmul(h4, W5) + b5)
 phi = tf.reshape(phi_, [nn, batch_size])
+
 ##################################################################################################
 # phi = (tf.Variable(alpha * np.ones([nn, 1]), dtype='float32'))
 
@@ -244,34 +248,36 @@ sep_grad_store, error_store, dphi_store, dobj_store = [], [], [], []
 c, g, global_density = [], [], []
 rho = []
 dphi_fake = []
-error_store = []
-
+dc_dphi_store = []
+dg_dphi_store = []
+dL_store = []
+g_store = []
+g_global_store = []
 
 for i in range(batch_size):
-    phi_til = tf.matmul(tf.cast(H, tf.float32), phi[:,i:i+1]) / Hs.reshape(nn, 1)
+    phi_til = tf.matmul(tf.cast(H, tf.float32), phi[:, i:i + 1]) / Hs.reshape(nn, 1)
     rho.append((tf.tanh(beta / 2.0) + tf.tanh(beta * (phi_til - 0.5))) / (2 * tf.tanh(beta / 2.0)))
 
     sK_temp = tf.transpose((KE.reshape(KE.shape[0] * KE.shape[1], 1) * \
                             tf.reshape(Emin + tf.reshape(rho[i], [-1]) ** (gamma) * (E0 - Emin), [1, nelx * nely])))
     sK = tf.reshape(sK_temp, [8 * 8 * nelx * nely, 1])
 
-    ###################
+    ################### the purpose is to prepare a sparse K_sp ##############
     indices_m = np.stack((iK.reshape(-1), jK.reshape(-1)), axis=1)
     values_m = tf.reshape(sK, [-1])
 
-    linearized_m = tf.matmul(indices_m, [[10000], [1]])
-    y_m, idx_m = tf.unique(tf.squeeze(linearized_m))
+    linearized_m = tf.matmul(indices_m, [[10000], [1]])  # combine the x-coord and y-coord
+    y_m, idx_m = tf.unique(tf.squeeze(linearized_m))  # get the value and index
 
-    idx_m_sort, ind_m_sort = tf.nn.top_k(idx_m, k=nelx * nely * 64)
+    idx_m_sort, ind_m_sort = tf.nn.top_k(idx_m, k=nelx * nely * 64)  # sort the index and its corresponding index
     idx_m_sort = tf.reverse(idx_m_sort, [0])
     ind_m_sort = tf.reverse(ind_m_sort, [0])
 
-    # values_m_test = values_m
-    values_m = tf.gather(values_m, ind_m_sort)
-    values_m = tf.segment_sum(values_m, idx_m_sort)
+    values_m = tf.gather(values_m, ind_m_sort)  # re-assign the value acoording to the index
+    values_m = tf.segment_sum(values_m, idx_m_sort)  # sum the value with the same index
 
     y_m = tf.expand_dims(y_m, 1)
-    indices_m = tf.concat([y_m // 10000, y_m % 10000], axis=1)
+    indices_m = tf.concat([y_m // 10000, y_m % 10000], axis=1)  # sperate the x-coord and y-coord
     #####################
 
     #####################
@@ -284,19 +290,20 @@ for i in range(batch_size):
 
     K_temp = tf.gather(K_dense, freedofs.astype(np.int32))
     K_free = tf.transpose(tf.gather(tf.transpose(K_temp), freedofs.astype(np.int32)))
-    
-    F_RHS=tf.cast(tf.gather(tf.reshape(F[:,i:i+1], [(nelx + 1) * (nely + 1) * 2, 1]), freedofs.astype(np.int64)),
-                              tf.float32)
-    chol = tf.cholesky(K_free+np.diag((np.ones([1,(nelx+1)*(nely+1)*2-len(fixeddofs[0])])*1e-8).tolist()[0]))
-    U_pre = tf.cholesky_solve(chol,F_RHS)
-    
-#     U_pre = tf.matmul(tf.matrix_inverse(tf.cast(K_free, tf.float32)),
-#                       tf.cast(tf.gather(tf.reshape(F[:,i:i+1], [(nelx + 1) * (nely + 1) * 2, 1]), freedofs.astype(np.int64)),
-#                               tf.float32))
+
+    F_RHS = tf.cast(tf.gather(tf.reshape(F[:, i:i + 1], [(nelx + 1) * (nely + 1) * 2, 1]), freedofs.astype(np.int64)),
+                    tf.float32)
+    chol = tf.cholesky(
+        K_free + np.diag((np.ones([1, (nelx + 1) * (nely + 1) * 2 - len(fixeddofs[0])]) * 1e-8).tolist()[0]))
+    U_pre = tf.cholesky_solve(chol, F_RHS)
+
+    # U_pre = tf.matmul(tf.matrix_inverse(tf.cast(K_free, tf.float32)),
+    #                   tf.cast(tf.gather(tf.reshape(F[:,i:i+1], [(nelx + 1) * (nely + 1) * 2, 1]), freedofs.astype(np.int64)),
+    #                           tf.float32))
 
     U = tf.sparse_add(tf.zeros(((nelx + 1) * (nely + 1) * 2)),
                       tf.SparseTensor(freedofs.reshape((nelx + 1) * (nely + 1) * 2 - (nely + 1) * 2, 1),
-                      tf.reshape(tf.cast(U_pre, tf.float32), [-1]), [(nelx + 1) * (nely + 1) * 2]))
+                                      tf.reshape(tf.cast(U_pre, tf.float32), [-1]), [(nelx + 1) * (nely + 1) * 2]))
 
     'Objective Function and Sensitivity Analysis'
     ce = tf.reduce_sum(tf.multiply(tf.matmul(tf.reshape(tf.gather(U, edofMat.astype(np.int32)), edofMat.shape),
@@ -308,19 +315,33 @@ for i in range(batch_size):
     global_density.append(tf.matmul(tf.transpose(rho[i]), tf.ones([nn, 1])) / nn - alpha2)
     ###################################################################
     dc_drho = -gamma * rho[i] ** (gamma - 1) * (E0 - Emin) * ce
-    drho_dphi = beta * (1 - tf.tanh(beta * (phi[:,i:i+1] - 0.5)) ** 2) / 2.0 / tf.tanh(beta / 2.)
+    drho_dphi = beta * (1 - tf.tanh(beta * (phi[:, i:i + 1] - 0.5)) ** 2) / 2.0 / tf.tanh(beta / 2.)
     dc_dphi = tf.reduce_sum(bigM * (dphi_idphi * (dc_drho * drho_dphi)), axis=0)
     dg_drhobar = 1.0 / alpha / nn * (1.0 / nn * tf.reduce_sum(rho_bar ** p)) ** (1.0 / p - 1) * rho_bar ** (p - 1)
     dg_dphi = tf.reduce_sum(bigM * (dphi_idphi * (tf.matmul(tf.cast(bigN, tf.float32),
-                                                            (dg_drhobar / N_count.reshape(nn, 1))) * drho_dphi)), axis=0)
+                                                            (dg_drhobar / N_count.reshape(nn, 1))) * drho_dphi)),
+                            axis=0)
+    dc_dphi_mat = tf.expand_dims(dc_dphi, axis=1)
+    dg_dphi_mat = tf.expand_dims(dg_dphi, axis=1)
+    # dgglobal_dphi = tf.reduce_sum(bigM * (dphi_idphi * (tf.matmul(tf.cast(bigN, tf.float32),
+    #                                                         (dg_drhobar / N_count.reshape(nn, 1))) * drho_dphi)),
+    #                         axis=0)
+    # dg_concat = tf.concat([dg_dphi, dgglobal_dphi], axis=1)
+    dL = tf.matmul(tf.transpose(dc_dphi_mat), 1 - tf.transpose(dg_dphi_mat) *
+                   (tf.matmul(dg_dphi_mat, tf.transpose(dg_dphi_mat)) + 1e-12) ** (-1) * dg_dphi_mat)
+    # optimal_lambda =
     #################################################################
-    error_store.append(tf.reduce_sum((1-dg_dphi*(tf.reduce_sum(dc_dphi*dg_dphi)+1e-12)**(-1)*dg_dphi)**2))
-    
-    
-error = tf.reduce_sum(error_store)    
+    error_store.append(tf.reduce_sum(dL ** 2) + tf.reduce_sum(10. * tf.nn.relu(g) + 10. * tf.nn.relu(global_density)))
+    dL_store.append(dL)
+    dc_dphi_store.append(dc_dphi)
+    dg_dphi_store.append(dg_dphi)
+    g_store.append(g)
+    g_global_store.append(global_density)
+
+error = tf.reduce_sum(error_store)
 
 global_step = tf.Variable(0, trainable=False)
-starter_learning_rate = 0.0001
+starter_learning_rate = 0.01
 learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
                                            1000, 1.0, staircase=True)
 
@@ -329,31 +350,42 @@ solver = tf.train.AdamOptimizer(learning_rate).minimize(error, global_step=globa
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
-LHS = sio.loadmat('{}/LHS_train.mat'.format(directory_data))['LHS_train'] # pre-sampling the loading condition offline
+LHS = sio.loadmat('{}/LHS_train.mat'.format(directory_data))['LHS_train']  # pre-sampling the loading condition offline
 
-LHS_x=np.int32(np.floor((LHS[:,0]-1)*(ratio/10.)))
-LHS_y=np.int32(np.floor((LHS[:,1]-1)*(ratio/10.)))
-LHS_z=LHS[:,2]
+LHS_x = np.int32(np.floor((LHS[:, 0] - 1) * (ratio / 10.)))
+LHS_y = np.int32(np.floor((LHS[:, 1] - 1) * (ratio / 10.)))
+LHS_z = LHS[:, 2]
 
-force=-1
-F_batch = np.zeros([len(LHS), 2*(nelx+1)*(nely+1)])
-error_store=[]
+force = -1
+F_batch = np.zeros([len(LHS), 2 * (nelx + 1) * (nely + 1)])
+error_store = []
 for i in range(len(LHS)):
     Fx = force * np.sin(LHS_z[i])
     Fy = force * np.cos(LHS_z[i])
-    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-1]=Fy
-    F_batch[i,2*((nely+1)*LHS_x[i]+LHS_y[i]+1)-2]=Fx
-    
+    F_batch[i, 2 * ((nely + 1) * (LHS_x[i] - 1) + LHS_y[i] - 1)] = Fy
+    F_batch[i, 2 * ((nely + 1) * (LHS_x[i] - 1) + LHS_y[i] - 1) - 1] = Fx
+
 F_load_input = LHS.copy()
 
-#---------------------- start training -------------------
-ratio=len(LHS)/batch_size
+# ---------------------- start training -------------------
+ratio = int(len(LHS) / batch_size)
 for epoch in range(10000):
     final_error = 0
     for it in range(ratio):
-        _, final_error_temp = sess.run([solver, error],
-                                       feed_dict={F:       np.transpose(F_batch[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]),
-                                                  F_input: F_load_input[it%ratio*batch_size:it%ratio*batch_size+batch_size,:]})
+        phi_old, _, final_error_temp, dc_dphi_temp, dg_dphi_temp, g_temp, g_global_temp = sess.run([phi, solver, error,
+                                                                             dc_dphi_store, dg_dphi_store, g_store,
+                                                                             g_global_store],
+                                       feed_dict={F: np.transpose(
+                                           F_batch[it % ratio * batch_size:it % ratio * batch_size + batch_size, :]),
+                                                  F_input: F_load_input[
+                                                           it % ratio * batch_size:it % ratio * batch_size + batch_size,
+                                                           :]})
+        phi_new = sess.run([phi], feed_dict={F: np.transpose(
+                                           F_batch[it % ratio * batch_size:it % ratio * batch_size + batch_size, :]),
+                                                  F_input: F_load_input[
+                                                           it % ratio * batch_size:it % ratio * batch_size + batch_size,
+                                                           :]})
+
         final_error = final_error + final_error_temp
-    final_error = final_error/len(LHS)
-    print('error is: {}'.format(final_error))
+    final_error = final_error / len(LHS)
+    print('epoch:{}, iteration:{}, error is: {}'.format(epoch, it, final_error))
